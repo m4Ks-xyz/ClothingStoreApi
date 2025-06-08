@@ -1,7 +1,7 @@
 const cartItemService = require("../services/cart-item.service.js");
 
 const updateCartItem = async(req, res) => {
-  const user = req.user;
+  const user = await req.user;
   try {
     const updatedCartItem = await cartItemService.updateCartItem(
         user._id,
@@ -15,7 +15,7 @@ const updateCartItem = async(req, res) => {
 };
 
 const removeCartItem = async(req, res) => {
-  const user = req.user;
+  const user = await req.user;
   try {
     await cartItemService.removeCartItem(user._id, req.params.id);
     return res.status(200).send({

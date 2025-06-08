@@ -27,7 +27,7 @@ const cartRouter = require("./routes/cart.routes.js");
 app.use("/api/cart", cartRouter);
 
 const cartItemRouter = require("./routes/cart-item.routes.js");
-app.use("/api/cart_items", cartItemRouter);
+app.use("/api/cart-item", cartItemRouter);
 
 const orderRouter = require("./routes/order.routes.js");
 app.use("/api/orders", orderRouter);

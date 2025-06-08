@@ -5,10 +5,10 @@ const OrderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "users",
   },
-  orderItems: {
+  orderItems: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: "orderItems",
-  },
+  }],
   orderDate: {
     type: Date,
     default: Date.now(),
