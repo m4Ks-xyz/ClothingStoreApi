@@ -14,27 +14,20 @@ async function createCart(user) {
 
 async function findUserCart(userId) {
   try {
-    let car = await Cart.find({user: userId})
+    const cart = await Cart.findOne({ user: userId })
+        .populate({
+          path: 'cartItems',
+          populate: {
+            path: 'product'  // usunięto model i select
+          }
+        });
 
-    let cartItems = await CartItem.find({cart:cart_id}).populate('product');
-
-    cart.cartItems = cartItems;
-
-    let totalPrice = 0;
-    let totalDiscountedPrice = 0;
-    let totalItem = 0;
-
-    for (let cartItem of cart.cartItems) {
-      totalPrice += cartItem.price;
-      totalDiscountedPrice += cartItem.discountedPrice;
-      totalItem += cartItem.quantity;
+    if (!cart) {
+      throw new Error("Koszyk nie znaleziony");
     }
 
-    cart.totalPrice = totalPrice;
-    cart.totalItem = totalItem;
-    cart.discount = totalPrice - totalDiscountedPrice;
+    return cart;
 
-    return cart
   } catch (error) {
     throw new Error(error.message);
   }
@@ -42,10 +35,18 @@ async function findUserCart(userId) {
 
 async function addCartItem(userId, req) {
   try {
-    const cart = await Cart.findOne({user:userId})
-    const product = await Product.findById(req.productId)
+    let cart = await Cart.findOne({ user: userId });
+    const product = await Product.findById(req.productId);
 
-    const isPresent = await CartItem.findOne({cart: cart._id, product: product._id, userId})
+    if (!cart || !product) {
+      throw new Error("Koszyk lub produkt nie istnieje");
+    }
+
+    const isPresent = await CartItem.findOne({
+      cart: cart._id,
+      product: product._id,
+      userId
+    });
 
     if (!isPresent) {
       const cartItem = new CartItem({
@@ -56,13 +57,35 @@ async function addCartItem(userId, req) {
         price: product.price,
         size: req.size,
         discountedPrice: product.discountedPrice,
-      })
+      });
 
-      const createdCartItem = await cartItem.save()
-      cart.cartItems.push(createdCartItem)
-      await cart.save()
-      return "Item added to cart"
+      const createdCartItem = await cartItem.save();
+
+      cart = await Cart.findOneAndUpdate(
+          { _id: cart._id },
+          {
+            $push: { cartItems: createdCartItem._id },
+            $inc: {
+              totalPrice: product.price,
+              totalItem: 1,
+              totalDiscountedPrice: product.discountedPrice,
+              discount: product.price - product.discountedPrice
+            }
+          },
+          { new: true }
+      )
+          .populate({
+            path: 'cartItems',
+            populate: {
+              path: 'product'  // usunięto model i select
+            }
+          });
+
+      return cart;
     }
+
+    return "Item is already in cart";
+
   } catch (error) {
     throw new Error(error.message);
   }

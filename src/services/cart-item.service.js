@@ -33,7 +33,7 @@ try {
 }
 
 async function removeCartItem(userId, cartItemId) {
-  const cartItem = await findCartItemBtId(cartItemId);
+  const cartItem = await findCartItemById(cartItemId);
   const user = await userService.findUserById(userId);
 
   if (user._id.toString()=== cartItem.userId.toString()) {
@@ -44,7 +44,7 @@ async function removeCartItem(userId, cartItemId) {
 }
 
 async function findCartItemById(cartItemId) {
-  const cartItem = await findCartItemBtId(cartItemId);
+  const cartItem = await findCartItemById(cartItemId);
   if (cartItem) {
     return cartItem;
   }else{

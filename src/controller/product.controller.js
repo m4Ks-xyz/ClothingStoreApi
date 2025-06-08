@@ -57,7 +57,7 @@ const createMultipleProduct = async (req, res) => {
   }
 }
 
-module.exports = {
+module.exports={
   createProduct,
   deleteProduct,
   updateProduct,

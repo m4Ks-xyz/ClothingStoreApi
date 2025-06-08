@@ -2,62 +2,67 @@ const Category = require("../models/category.model");
 const Product = require("../models/product.model");
 
 
-async function createProduct(reqData){
+async function createProduct(reqData) {
   let topLevel = await Category.findOne({name: reqData.topLevelCategory})
 
   if(!topLevel){
-    topLevel =  new Category({
+    topLevel = new Category({
       name: reqData.topLevelCategory,
-      level:1
+      level: 1
     })
+    await topLevel.save()
   }
 
   let secondLevel = await Category.findOne({
-    name:reqData.secondLevelCategory,
-    parentCategory:topLevel._id,
+    name: reqData.secondLevelCategory,
+    parentCategory: topLevel._id,
   })
 
   if(!secondLevel){
     secondLevel = new Category({
       name: reqData.secondLevelCategory,
-      parentCategoryL: topLevel._id,
-      level:2
+      parentCategory: topLevel._id,
+      level: 2
     })
+    await secondLevel.save()
   }
 
-
   let thirdLevel = await Category.findOne({
-    name:reqData.thirdLevelCategory,
+    name: reqData.thirdLevelCategory,
     parentCategory: secondLevel._id,
-
   })
 
   if(!thirdLevel){
     thirdLevel = new Category({
       name: reqData.thirdLevelCategory,
       parentCategory: secondLevel._id,
-      level:3
+      level: 3
     })
+    await thirdLevel.save()
   }
 
-  const product = new Product({
-   title:reqData.title,
-    color: reqData.color,
-    description:reqData.description,
-    discountedPrice:reqData.discountedPrice,
-    discount:reqData.discount,
-    imageUrl:reqData.imageUrl,
-    brand:reqData.brand,
-    price:reqData.price,
-    size:reqData.size,
-    quantity:reqData.quantity,
-    category: thirdLevel._id,
+  const sizes = Array.isArray(reqData.sizes) ? reqData.sizes.map(size => ({
+    name: size.name,
+    quantity: size.quantity
+  })) : [];
 
+  const product = new Product({
+    title: reqData.title,
+    color: reqData.color,
+    description: reqData.description,
+    discountedPrice: reqData.discountedPrice,
+    discount: reqData.discount,
+    imageUrl: reqData.imageUrl,
+    brand: reqData.brand,
+    price: reqData.price,
+    sizes: sizes,
+    quantity: reqData.quantity,
+    category: thirdLevel._id,
+    level: thirdLevel.level
   })
 
-  return product.save()
+  return await product.save()
 }
-
 async function deleteProduct(productId){
   const product = await findProductById(productId);
 
