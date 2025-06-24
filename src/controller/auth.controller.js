@@ -25,7 +25,7 @@ const login = async (req, res) => {
     if (!user) {
       return res
         .status(404)
-        .send({ message: `User not found with this email ${email}` });
+        .send({ message: `User not found with this email` });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);

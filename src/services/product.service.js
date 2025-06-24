@@ -15,13 +15,11 @@ async function createProduct(reqData) {
 
   let secondLevel = await Category.findOne({
     name: reqData.secondLevelCategory,
-    parentCategory: topLevel._id,
   })
 
   if(!secondLevel){
     secondLevel = new Category({
       name: reqData.secondLevelCategory,
-      parentCategory: topLevel._id,
       level: 2
     })
     await secondLevel.save()
@@ -29,13 +27,11 @@ async function createProduct(reqData) {
 
   let thirdLevel = await Category.findOne({
     name: reqData.thirdLevelCategory,
-    parentCategory: secondLevel._id,
   })
 
   if(!thirdLevel){
     thirdLevel = new Category({
       name: reqData.thirdLevelCategory,
-      parentCategory: secondLevel._id,
       level: 3
     })
     await thirdLevel.save()
@@ -50,7 +46,7 @@ async function createProduct(reqData) {
     title: reqData.title,
     color: reqData.color,
     description: reqData.description,
-    discountedPrice: reqData.discountedPrice,
+    discountedPrice: reqData.price * (1 - (reqData.discount / 100)),
     discount: reqData.discount,
     imageUrl: reqData.imageUrl,
     brand: reqData.brand,
@@ -86,20 +82,47 @@ async function findProductById(productId){
 }
 
 async function getAllProducts(reqQuery){
-  let { category, color, sizes, minPrice, maxPrice, minDiscount, sort, stock, pageNumber, pageSize } = reqQuery;
+  let { levelThree, levelOne, levelTwo, color, sizes, minPrice, maxPrice, minDiscount, sort, stock, pageNumber, pageSize } = reqQuery;
 
   pageSize = pageSize || 10;
 
   let query = Product.find().populate('category')
 
-  if (category){
-    const existCategory = await Category.findOne({name:category})
-    if (existCategory){
-      query = query.where('category').equals(existCategory._id)
+  if (levelThree){
+    // Znajdź kategorię poziomu 1
+    const existCategory1 = await Category.findOne({ name: levelOne, level: 1 });
+    console.log(existCategory1)
+    if (!existCategory1) {
+      console.log(1)
+      return { content: [], currentPage: 1, totalPage: 0 };
     }
-    else{
-      return {content: [], currentPage:1, totalPage:0}
+
+    // Znajdź kategorię poziomu 2, której parent to levelOne
+    const existCategory2 = await Category.findOne({
+      name: levelTwo,
+      level: 2,
+      parentCategory: existCategory1._id,
+    });
+    console.log(existCategory2)
+    if (!existCategory2) {
+      console.log(2)
+      return { content: [], currentPage: 1, totalPage: 0 };
     }
+
+    // Znajdź kategorię poziomu 3, której parent to levelTwo
+    const existCategory3 = await Category.findOne({
+      name: levelThree,
+      level: 3,
+      parentCategory: existCategory2._id
+
+    });
+    console.log(existCategory3)
+      console.log(3)
+    if (!existCategory3) {
+      return { content: [], currentPage: 1, totalPage: 0 };
+    }
+
+    query = query.where('category').equals(existCategory3._id);
   }
 
   if(color) {

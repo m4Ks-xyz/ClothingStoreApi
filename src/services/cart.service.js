@@ -52,11 +52,12 @@ async function addCartItem(userId, req) {
       const cartItem = new CartItem({
         product: product._id,
         cart: cart._id,
-        quantity: 1,
+        quantity: req.quantity,
         userId,
         price: product.price,
         size: req.size,
         discountedPrice: product.discountedPrice,
+
       });
 
       const createdCartItem = await cartItem.save();
@@ -66,10 +67,10 @@ async function addCartItem(userId, req) {
           {
             $push: { cartItems: createdCartItem._id },
             $inc: {
-              totalPrice: product.price,
+              totalPrice: product.price  * req.quantity,
               totalItem: 1,
-              totalDiscountedPrice: product.discountedPrice,
-              discount: product.price - product.discountedPrice
+              totalDiscountedPrice: product.discountedPrice === 0 ? product.price * req.quantity :  product.discountedPrice * req.quantity,
+              discount: product.discountedPrice === 0 ? 0 : product.price - product.discountedPrice
             }
           },
           { new: true }

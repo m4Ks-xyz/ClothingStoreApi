@@ -15,8 +15,8 @@ async function updateCartItem(userId, cartItemId, cartItemData) {
     if (item.userId.toString() === userId.toString()) {
       // Aktualizuj dane elementu
       item.quantity = cartItemData.quantity;
-      item.price = item.quantity * item.product.price;
-      item.discountedPrice = item.quantity * (item.product.discountedPrice || item.product.price);
+      item.price = cartItemData.quantity * item.product.price;
+      item.discountedPrice =  item.product.discount === 0 ? cartItemData.quantity * item.product.price  : cartItemData.quantity * item.product.discountedPrice ;
 
       const updatedCartItem = await item.save();
 
@@ -45,7 +45,7 @@ async function updateCartItem(userId, cartItemId, cartItemData) {
 }
 
 async function removeCartItem(userId, cartItemId) {
-  const cartItem = (await findCartItemById(cartItemId)).populate("product");
+  const cartItem = await CartItem.findById(cartItemId).populate("product");
   const user = await userService.findUserById(userId);
 
   if (user._id.toString() === cartItem.userId.toString()) {
@@ -72,7 +72,7 @@ async function removeCartItem(userId, cartItemId) {
     // Przelicz wartości koszyka
     cart.totalPrice = remainingItems.reduce((sum, item) => sum + item.price, 0);
     cart.totalDiscountedPrice = remainingItems.reduce((sum, item) =>
-        sum + (item.discountedPrice || item.price), 0);
+        sum + ( item.discountedPrice || item.price), 0);
     cart.totalItem = remainingItems.length;
     cart.discount = cart.totalPrice - cart.totalDiscountedPrice;
 
