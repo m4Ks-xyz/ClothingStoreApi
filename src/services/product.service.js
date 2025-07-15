@@ -67,7 +67,7 @@ async function deleteProduct(productId){
 }
 
 async function updateProduct(productId, reqData){
-  return await Product.findByIdAndUpdate(productId, reqData)
+  return await Product.updateMany(productId, reqData)
 
 }
 
@@ -78,22 +78,56 @@ async function findProductById(productId){
     throw new Error(`Product not found with id: ${productId}`);
   }
 
-  return product;
+  const existCategory3 = await Category.findOne({ _id: product.category, level: 3 });
+  if (!existCategory3) {
+    return { content: [], currentPage: 1, totalPage: 0 };
+  }
+
+  // Znajdź kategorię poziomu 2, której parent to levelThree
+  const existCategory2 = await Category.findOne({
+    _id: existCategory3.parentCategory,
+    level: 2,
+  });
+
+  // Znajdź kategorię poziomu 1, której parent to levelTwo
+  let existCategory1 = null;
+  if (existCategory2) {
+    existCategory1 = await Category.findOne({
+      _id: existCategory2.parentCategory,
+      level: 1,
+    });
+  }
+
+
+  return {
+    details: product,
+    path: {
+      categoryOne: existCategory1?.name || "",
+      categoryTwo: existCategory2?.name || "",
+      categoryThree: existCategory3?.name || ""
+    }
+  };
 }
 
 async function getAllProducts(reqQuery){
   let { levelThree, levelOne, levelTwo, color, sizes, minPrice, maxPrice, minDiscount, sort, stock, pageNumber, pageSize } = reqQuery;
 
-  pageSize = pageSize || 10;
+  pageSize = pageSize || 12;
 
   let query = Product.find().populate('category')
 
-  if (levelThree){
+  if (levelThree && levelTwo === undefined && levelOne === undefined){
+
+    query = query.where('category').equals(levelThree);
+
+
+
+  }
+
+  if (levelThree && levelTwo && levelOne){
     // Znajdź kategorię poziomu 1
     const existCategory1 = await Category.findOne({ name: levelOne, level: 1 });
-    console.log(existCategory1)
     if (!existCategory1) {
-      console.log(1)
       return { content: [], currentPage: 1, totalPage: 0 };
     }
 
@@ -103,9 +137,7 @@ async function getAllProducts(reqQuery){
       level: 2,
       parentCategory: existCategory1._id,
     });
-    console.log(existCategory2)
     if (!existCategory2) {
-      console.log(2)
       return { content: [], currentPage: 1, totalPage: 0 };
     }
 
@@ -116,28 +148,28 @@ async function getAllProducts(reqQuery){
       parentCategory: existCategory2._id
 
     });
-    console.log(existCategory3)
-      console.log(3)
     if (!existCategory3) {
       return { content: [], currentPage: 1, totalPage: 0 };
     }
+
 
     query = query.where('category').equals(existCategory3._id);
   }
 
   if(color) {
-    const colorSet = new Set(color.split(",").map(color => color.trim().toLowerCase()));
+    const colorSet = color ? new Set(color.split(",").map(c => c.trim().toLowerCase())) : new Set();
     const colorRegex = colorSet.size > 0 ? new RegExp([...colorSet].join("|"), "i") : null;
     query = query.where("color").regex(colorRegex);
   }
 
   if(sizes) {
-    const sizesSet = new Set(sizes);
-    query.query.where("sizes.name").in([...sizesSet]);
+    const sizesSet = Array.isArray(sizes) ? new Set(sizes) : new Set(sizes.split(",").map(s => s.trim()));
+    const sizesArray = Array.from(sizesSet);
+    query = query.where("sizes").elemMatch({ name: { $in: sizesArray }, quantity: { $gt: 0 } });
   }
 
   if(minPrice && maxPrice) {
-    query = await query.where('discountedPrice').gte(minPrice).lte(maxPrice);
+    query = query.where('discountedPrice').gte(Number(minPrice)).lte(Number(maxPrice));
   }
 
   if (minDiscount) {
@@ -149,12 +181,12 @@ async function getAllProducts(reqQuery){
     if(stock === "in_stock") {
       query = query.where("quantity").gt(0);
     } else if(stock === "out_of_stock") {
-      query = query.where("quantity").gt(1);
+      query = query.where("quantity").lte(0);
     }
   }
 
   if(sort) {
-    const sortDirection = sort === "price_hight" ? -1 : 1;
+    const sortDirection = sort === "price-high-low" ? -1 : 1;
     query = query.sort({discountedPrice: sortDirection});
   }
 
@@ -168,10 +200,13 @@ async function getAllProducts(reqQuery){
 
   const totalPages = Math.ceil(totalProducts/pageSize);
 
+
+
   return {
     content: products,
     currentPage: pageNumber,
     totalPages,
+    totalProducts,
   }
 
 }
@@ -182,6 +217,36 @@ async function createMultipleProduct(products) {
     await createProduct(product);
   }
 }
+
+
+
+// separetly
+// async function createMultipleProduct() {
+//   function getRandomQuantity() {
+//     return Math.floor(Math.random() * 101);
+//   }
+//   const products = await Product.find({});
+//   for (const product of products) {
+//     product.sizes = [
+//           { name: 'S', quantity: getRandomQuantity() },
+//           { name: 'M', quantity: getRandomQuantity() },
+//           { name: 'L', quantity: getRandomQuantity() }
+//     ];
+//     await product.save();
+//         }
+//       }
+
+
+// quantity sum
+// async function createMultipleProduct() {
+//
+//   const products = await Product.find({});
+//   for (const product of products) {
+//     product.quantity = product.sizes.reduce((sum, size) => sum + size.quantity, 0);
+//     await product.save();
+//         }
+//       }
+
 
 module.exports = {
   createProduct,

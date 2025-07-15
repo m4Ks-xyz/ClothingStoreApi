@@ -69,6 +69,7 @@ const ProductSchema = new mongoose.Schema({
   topLevelCategory: {
     type:String,
 
+
   },
   secondLevelCategory: {
     type:String,

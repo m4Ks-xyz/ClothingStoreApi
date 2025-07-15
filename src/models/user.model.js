@@ -17,6 +17,9 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  imageUrl: {
+    type: String,
+  },
   role: {
     type: String,
     required: true,

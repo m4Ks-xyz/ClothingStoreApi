@@ -3,7 +3,7 @@ const Address = require("../models/address.model");
 const Order = require("../models/order.model");
 const OrderItems = require("../models/order-items.model");
 
-async function createOrder(user, shippingAddress){
+async function createOrder(user, {shippingAddress}){
   let address;
 
   if (shippingAddress._id) {
@@ -54,8 +54,8 @@ async function createOrder(user, shippingAddress){
 async function placeOrder(orderId){
   const order = await findOrderById(orderId);
 
-  order.orderStatus = 'PLACED';
-  order.paymentDetails = 'COMPLETED';
+  order.orderStatus = 'placed';
+  order.paymentDetails = 'completed';
 
   await order.save();
 }
@@ -63,53 +63,65 @@ async function placeOrder(orderId){
 async function confirmOrder(orderId){
   const order = await findOrderById(orderId);
 
-  order.orderStatus = 'CONFIRMED';
+  order.orderStatus = 'confirmed';
 
   await order.save();
 }
 async function prepareOrder(orderId){
   const order = await findOrderById(orderId);
 
-  order.orderStatus = 'PREPARING';
+  order.orderStatus = 'preparing';
 
   await order.save();
 }
 async function sendOrder(orderId){
   const order = await findOrderById(orderId);
 
-  order.orderStatus = 'SEND';
+  order.orderStatus = 'send';
 
   await order.save();
 }
 async function deliverOrder(orderId){
   const order = await findOrderById(orderId);
 
-  order.orderStatus = 'DELIVERED';
+  order.orderStatus = 'delivered';
 
   await order.save();
 }
 async function cancelOrder(orderId){
   const order = await findOrderById(orderId);
 
-  order.orderStatus = 'CANCELLED';
+  order.orderStatus = 'canceled';
 
   await order.save();
 }
 
+const mongoose = require('mongoose');
+
 async function findOrderById(orderId){
+  if (!mongoose.Types.ObjectId.isValid(orderId)) {
+    throw new Error('Nieprawidłowy identyfikator zamówienia');
+  }
   const order = await Order.findById(orderId)
       .populate('user')
       .populate({path: "orderItems", populate:{path:'product'}})
-      .populate('shippingAddress')
+      .populate('shippingAddress');
+
+  if (!order) {
+    throw new Error('Order not found');
+  }
 
   return order;
 }
 
 async function userOrderHistory(userId){
+
   try{
-    const orders = await Order.find({user: userId, orderStatus: "PLACED"})
-        .populate({path:"orderItems", populate:{path:"product"}}).lean()
-  return orders
+    const orders = await Order.find({user: userId })
+        .populate({path:"orderItems", populate:{path:"product"}})
+        .lean();
+
+    return orders;
   } catch(error){
     throw new Error(error.message);
   }
@@ -137,4 +149,5 @@ module.exports = {
   prepareOrder,
   sendOrder,
   cancelOrder,
+  findOrderById,
 }
