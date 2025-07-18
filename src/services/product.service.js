@@ -109,6 +109,8 @@ async function findProductById(productId){
   };
 }
 
+
+
 async function getAllProducts(reqQuery) {
   let {
     levelThree,
@@ -122,84 +124,82 @@ async function getAllProducts(reqQuery) {
     sort,
     stock,
     pageNumber,
-    pageSize
+    pageSize,
   } = reqQuery;
 
   pageSize = Number(pageSize) || 12;
   pageNumber = Number(pageNumber) || 1;
 
-  // -------------------------
-  // Build a MongoDB $match obj
-  // -------------------------
-  const match = {};
+  // ------------------------------------------------------------- ----
+  // 1. Resolve categoryId
+  // ------------------------------------------------------------------
+  let categoryId = null;
 
-  // Category filtering
-  if (levelThree && levelTwo === undefined && levelOne === undefined) {
-    match.category = levelThree; // assuming passed as ObjectId string
+  // Case A: related products (only levelThree given; expected to be _id_)
+  if (levelThree && !levelTwo && !levelOne) {
+      // defensive: treat as name level:3
+      const cat = await Category.findById(levelThree).select("_id");
+      if (!cat) {
+        return { content: [], currentPage: 1, totalPages: 0, totalProducts: 0 };
+      }
+      categoryId = cat._id;
+
   }
 
+  // Case B: full browse path (names for levelOne/Two/Three)
   if (levelThree && levelTwo && levelOne) {
-    const existCategory1 = await Category.findOne({ name: levelOne, level: 1 });
-    if (!existCategory1) {
-      return { content: [], currentPage: 1, totalPages: 0, totalProducts: 0 };
-    }
+    const cat1 = await Category.findOne({ name: levelOne, level: 1 }).select("_id");
+    if (!cat1) return { content: [], currentPage: 1, totalPages: 0, totalProducts: 0 };
 
-    const existCategory2 = await Category.findOne({
-      name: levelTwo,
-      level: 2,
-      parentCategory: existCategory1._id,
-    });
-    if (!existCategory2) {
-      return { content: [], currentPage: 1, totalPages: 0, totalProducts: 0 };
-    }
+    const cat2 = await Category.findOne({ name: levelTwo, level: 2, parentCategory: cat1._id }).select("_id");
+    if (!cat2) return { content: [], currentPage: 1, totalPages: 0, totalProducts: 0 };
 
-    const existCategory3 = await Category.findOne({
-      name: levelThree,
-      level: 3,
-      parentCategory: existCategory2._id,
-    });
-    if (!existCategory3) {
-      return { content: [], currentPage: 1, totalPages: 0, totalProducts: 0 };
-    }
+    const cat3 = await Category.findOne({ name: levelThree, level: 3, parentCategory: cat2._id }).select("_id");
+    if (!cat3) return { content: [], currentPage: 1, totalPages: 0, totalProducts: 0 };
 
-    match.category = existCategory3._id;
+    categoryId = cat3._id
+
   }
 
-  // Color filter
+  // ------------------------------------------------------------------
+  // 2. Build basic $match
+  // ------------------------------------------------------------------
+  const match = {};
+  if (categoryId) match.category = categoryId;
+
+  // color
   if (color) {
-    const colorSet = new Set(color.split(",").map(c => c.trim()).filter(Boolean));
-    if (colorSet.size > 0) {
-      match.color = { $regex: [...colorSet].join("|"), $options: "i" };
+    const colors = color.split(",").map(c => c.trim()).filter(Boolean);
+    if (colors.length) {
+      match.color = { $regex: colors.join("|"), $options: "i" };
     }
   }
 
-  // Sizes filter (elemMatch with quantity > 0)
+  // sizes
   if (sizes) {
-    const sizesArray = Array.isArray(sizes)
+    const sizeArray = Array.isArray(sizes)
         ? sizes
         : sizes.split(",").map(s => s.trim()).filter(Boolean);
-    if (sizesArray.length > 0) {
-      match.sizes = { $elemMatch: { name: { $in: sizesArray }, quantity: { $gt: 0 } } };
+    if (sizeArray.length) {
+      match.sizes = { $elemMatch: { name: { $in: sizeArray }, quantity: { $gt: 0 } } };
     }
   }
 
-  // Discount filter
-  if (minDiscount) {
-    match.discount = { $gt: Number(minDiscount) };
+  // discount
+  if (minDiscount !== undefined && minDiscount !== null && minDiscount !== "") {
+    match.discount = { $gte: Number(minDiscount) };
   }
 
-  // Stock filter
+  // stock
   if (stock === "in_stock") {
     match.quantity = { $gt: 0 };
   } else if (stock === "out_of_stock") {
     match.quantity = { $lte: 0 };
   }
 
-  // -------------------------
-  // Aggregation pipeline
-  // -------------------------
-
-  // Build an expression that yields the "effective" price used for both filtering & sorting.
+  // ------------------------------------------------------------------
+  // 3. Effective price expression
+  // ------------------------------------------------------------------
   const effectivePriceExpr = {
     $cond: [
       { $gt: ["$discountedPrice", 0] },
@@ -208,31 +208,34 @@ async function getAllProducts(reqQuery) {
     ],
   };
 
-  // If min/max price were specified, apply them against effective price
-  const priceFilters = [];
-  if (minPrice != null && minPrice !== "") {
-    priceFilters.push({ $gte: [effectivePriceExpr, Number(minPrice)] });
+  // price band (applied via $expr so we filter on effective price)
+  const priceConds = [];
+  if (minPrice !== undefined && minPrice !== null && minPrice !== "") {
+    priceConds.push({ $gte: [effectivePriceExpr, Number(minPrice)] });
   }
-  if (maxPrice != null && maxPrice !== "") {
-    priceFilters.push({ $lte: [effectivePriceExpr, Number(maxPrice)] });
+  if (maxPrice !== undefined && maxPrice !== null && maxPrice !== "") {
+    priceConds.push({ $lte: [effectivePriceExpr, Number(maxPrice)] });
   }
 
-  // Combine $match + optional $expr price band
+  // ------------------------------------------------------------------
+  // 4. Aggregation pipeline
+  // ------------------------------------------------------------------
   const pipeline = [{ $match: match }];
 
-  if (priceFilters.length > 0) {
-    pipeline.push({
-      $match: {
-        $expr: { $and: priceFilters },
-      },
-    });
+  if (priceConds.length) {
+    pipeline.push({ $match: { $expr: { $and: priceConds } } });
   }
 
-  // Populate category (like .populate('category'))
+  // compute effectivePrice (needed before sort)
+  pipeline.push({
+    $addFields: { effectivePrice: effectivePriceExpr },
+  });
+
+  // populate category (Product.category -> categories._id)
   pipeline.push(
       {
         $lookup: {
-          from: "categories",            // adjust if your actual collection name differs
+          from: "categories", // adjust if your actual collection name differs
           localField: "category",
           foreignField: "_id",
           as: "category",
@@ -241,37 +244,29 @@ async function getAllProducts(reqQuery) {
       { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } }
   );
 
-  // Add effectivePrice field
-  pipeline.push({
-    $addFields: {
-      effectivePrice: effectivePriceExpr,
-    },
-  });
+  // sort
+  const sortOrder = reqQuery.sort === "price-high-low" ? -1 : 1;
+  pipeline.push({ $sort: { effectivePrice: sortOrder, _id: 1 } });
 
-  // Sorting: default low-high; use sort param
-  const sortOrder = sort === "price-high-low" ? -1 : 1;
-  pipeline.push({
-    $sort: { effectivePrice: sortOrder, _id: 1 }, // _id tiebreaker for stability
-  });
-
-  // Pagination + total count in one go
+  // paginate + total
   pipeline.push({
     $facet: {
       products: [
         { $skip: (pageNumber - 1) * pageSize },
         { $limit: pageSize },
       ],
-      totalCount: [
-        { $count: "count" },
-      ],
+      totalCount: [{ $count: "count" }],
     },
   });
 
-  // Run aggregation
-  const aggResult = await Product.aggregate(pipeline).exec();
+  // ------------------------------------------------------------------
+  // 5. Run + shape return
+  // ------------------------------------------------------------------
+  const agg = await Product.aggregate(pipeline).exec();
+  const bucket = agg[0] || { products: [], totalCount: [] };
 
-  const products = aggResult[0]?.products ?? [];
-  const totalProducts = aggResult[0]?.totalCount?.[0]?.count ?? 0;
+  const products = bucket.products;
+  const totalProducts = bucket.totalCount[0]?.count || 0;
   const totalPages = Math.ceil(totalProducts / pageSize) || 0;
 
   return {
@@ -281,7 +276,6 @@ async function getAllProducts(reqQuery) {
     totalProducts,
   };
 }
-
 async function createMultipleProduct(products) {
   for(let product of products) {
     await createProduct(product);
