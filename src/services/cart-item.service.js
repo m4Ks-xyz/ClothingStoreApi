@@ -81,7 +81,9 @@ async function removeCartItem(userId, cartItemId) {
   } else {
     throw new Error("Nie możesz usunąć elementu innego użytkownika");
   }
-}async function findCartItemById(cartItemId) {
+}
+
+async function findCartItemById(cartItemId) {
   const cartItem = await CartItem.findById(cartItemId);
   if (cartItem) {
     return cartItem;

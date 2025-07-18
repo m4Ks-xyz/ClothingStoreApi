@@ -237,7 +237,18 @@ async function createMultipleProduct(products) {
 //       }
 
 
-// quantity sum
+// clear products
+// async function createMultipleProduct() {
+//
+//   const products = await Product.find({});
+//   for (const product of products) {
+//     product.ratings = []
+//     product.reviews = []
+//     await product.save();
+//         }
+//       }
+
+      // quantity sum
 // async function createMultipleProduct() {
 //
 //   const products = await Product.find({});

@@ -10,7 +10,6 @@ async function createReview(data, user) {
 
   if (!product) throw new Error("Product not found");
 
-  // ✅ Check if user has already reviewed this product
   const existingReview = await Review.findOne({
     user: user._id,
     product: product._id,
@@ -43,8 +42,7 @@ async function createReview(data, user) {
 
 async function getAllReview(productId) {
 
-  const product = await productService.findProductById( productId);
-  return await Review.find({ product: productId }).populate('user', 'firstName lastName imageURL -_id') ;
+  return await Review.find({ product: productId }).populate('user', 'firstName lastName imageURL ') ;
 }
 
 module.exports = {

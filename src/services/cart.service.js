@@ -79,7 +79,7 @@ async function addCartItem(userId, req) {
           .populate({
             path: 'cartItems',
             populate: {
-              path: 'product'  // usunięto model i select
+              path: 'product'
             }
           });
 

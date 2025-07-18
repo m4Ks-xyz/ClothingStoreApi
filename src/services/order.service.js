@@ -29,7 +29,7 @@ async function createOrder(user, {shippingAddress}){
       quantity: item.quantity,
       size: item.size,
       userId: item.userId,
-      discounted: item.discountedPrice,
+      discountedPrice: item.discountedPrice,
     });
 
     const createdOrderItem = await orderItem.save();
@@ -42,7 +42,7 @@ async function createOrder(user, {shippingAddress}){
     totalPrice: cart.totalPrice,
     totalDiscountedPrice: cart.totalDiscountedPrice,
     discount: cart.discount,
-    totalItem: cart.totalItem,
+    totalItems: cart.totalItem,
     shippingAddress: address,
   })
 
