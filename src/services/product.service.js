@@ -109,108 +109,178 @@ async function findProductById(productId){
   };
 }
 
-async function getAllProducts(reqQuery){
-  let { levelThree, levelOne, levelTwo, color, sizes, minPrice, maxPrice, minDiscount, sort, stock, pageNumber, pageSize } = reqQuery;
+async function getAllProducts(reqQuery) {
+  let {
+    levelThree,
+    levelOne,
+    levelTwo,
+    color,
+    sizes,
+    minPrice,
+    maxPrice,
+    minDiscount,
+    sort,
+    stock,
+    pageNumber,
+    pageSize
+  } = reqQuery;
 
-  pageSize = pageSize || 12;
+  pageSize = Number(pageSize) || 12;
+  pageNumber = Number(pageNumber) || 1;
 
-  let query = Product.find().populate('category')
+  // -------------------------
+  // Build a MongoDB $match obj
+  // -------------------------
+  const match = {};
 
-  if (levelThree && levelTwo === undefined && levelOne === undefined){
-
-    query = query.where('category').equals(levelThree);
-
-
-
+  // Category filtering
+  if (levelThree && levelTwo === undefined && levelOne === undefined) {
+    match.category = levelThree; // assuming passed as ObjectId string
   }
 
-  if (levelThree && levelTwo && levelOne){
-    // Znajdź kategorię poziomu 1
+  if (levelThree && levelTwo && levelOne) {
     const existCategory1 = await Category.findOne({ name: levelOne, level: 1 });
     if (!existCategory1) {
-      return { content: [], currentPage: 1, totalPage: 0 };
+      return { content: [], currentPage: 1, totalPages: 0, totalProducts: 0 };
     }
 
-    // Znajdź kategorię poziomu 2, której parent to levelOne
     const existCategory2 = await Category.findOne({
       name: levelTwo,
       level: 2,
       parentCategory: existCategory1._id,
     });
     if (!existCategory2) {
-      return { content: [], currentPage: 1, totalPage: 0 };
+      return { content: [], currentPage: 1, totalPages: 0, totalProducts: 0 };
     }
 
-    // Znajdź kategorię poziomu 3, której parent to levelTwo
     const existCategory3 = await Category.findOne({
       name: levelThree,
       level: 3,
-      parentCategory: existCategory2._id
-
+      parentCategory: existCategory2._id,
     });
     if (!existCategory3) {
-      return { content: [], currentPage: 1, totalPage: 0 };
+      return { content: [], currentPage: 1, totalPages: 0, totalProducts: 0 };
     }
 
-
-    query = query.where('category').equals(existCategory3._id);
+    match.category = existCategory3._id;
   }
 
-  if(color) {
-    const colorSet = color ? new Set(color.split(",").map(c => c.trim().toLowerCase())) : new Set();
-    const colorRegex = colorSet.size > 0 ? new RegExp([...colorSet].join("|"), "i") : null;
-    query = query.where("color").regex(colorRegex);
+  // Color filter
+  if (color) {
+    const colorSet = new Set(color.split(",").map(c => c.trim()).filter(Boolean));
+    if (colorSet.size > 0) {
+      match.color = { $regex: [...colorSet].join("|"), $options: "i" };
+    }
   }
 
-  if(sizes) {
-    const sizesSet = Array.isArray(sizes) ? new Set(sizes) : new Set(sizes.split(",").map(s => s.trim()));
-    const sizesArray = Array.from(sizesSet);
-    query = query.where("sizes").elemMatch({ name: { $in: sizesArray }, quantity: { $gt: 0 } });
+  // Sizes filter (elemMatch with quantity > 0)
+  if (sizes) {
+    const sizesArray = Array.isArray(sizes)
+        ? sizes
+        : sizes.split(",").map(s => s.trim()).filter(Boolean);
+    if (sizesArray.length > 0) {
+      match.sizes = { $elemMatch: { name: { $in: sizesArray }, quantity: { $gt: 0 } } };
+    }
   }
 
-  if(minPrice && maxPrice) {
-    query = query.where('discountedPrice').gte(Number(minPrice)).lte(Number(maxPrice));
-  }
-
+  // Discount filter
   if (minDiscount) {
-    query = query.where("discount").gt(minDiscount)
+    match.discount = { $gt: Number(minDiscount) };
   }
 
-
-  if(stock) {
-    if(stock === "in_stock") {
-      query = query.where("quantity").gt(0);
-    } else if(stock === "out_of_stock") {
-      query = query.where("quantity").lte(0);
-    }
+  // Stock filter
+  if (stock === "in_stock") {
+    match.quantity = { $gt: 0 };
+  } else if (stock === "out_of_stock") {
+    match.quantity = { $lte: 0 };
   }
 
-  if(sort) {
-    const sortDirection = sort === "price-high-low" ? -1 : 1;
-    query = query.sort({discountedPrice: sortDirection});
+  // -------------------------
+  // Aggregation pipeline
+  // -------------------------
+
+  // Build an expression that yields the "effective" price used for both filtering & sorting.
+  const effectivePriceExpr = {
+    $cond: [
+      { $gt: ["$discountedPrice", 0] },
+      "$discountedPrice",
+      "$price",
+    ],
+  };
+
+  // If min/max price were specified, apply them against effective price
+  const priceFilters = [];
+  if (minPrice != null && minPrice !== "") {
+    priceFilters.push({ $gte: [effectivePriceExpr, Number(minPrice)] });
+  }
+  if (maxPrice != null && maxPrice !== "") {
+    priceFilters.push({ $lte: [effectivePriceExpr, Number(maxPrice)] });
   }
 
-  const totalProducts = await Product.countDocuments(query);
+  // Combine $match + optional $expr price band
+  const pipeline = [{ $match: match }];
 
-  const skip = (pageNumber-1) * pageSize;
+  if (priceFilters.length > 0) {
+    pipeline.push({
+      $match: {
+        $expr: { $and: priceFilters },
+      },
+    });
+  }
 
-  query = query.skip(skip).limit(pageSize);
+  // Populate category (like .populate('category'))
+  pipeline.push(
+      {
+        $lookup: {
+          from: "categories",            // adjust if your actual collection name differs
+          localField: "category",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } }
+  );
 
-  const products = await query.exec();
+  // Add effectivePrice field
+  pipeline.push({
+    $addFields: {
+      effectivePrice: effectivePriceExpr,
+    },
+  });
 
-  const totalPages = Math.ceil(totalProducts/pageSize);
+  // Sorting: default low-high; use sort param
+  const sortOrder = sort === "price-high-low" ? -1 : 1;
+  pipeline.push({
+    $sort: { effectivePrice: sortOrder, _id: 1 }, // _id tiebreaker for stability
+  });
 
+  // Pagination + total count in one go
+  pipeline.push({
+    $facet: {
+      products: [
+        { $skip: (pageNumber - 1) * pageSize },
+        { $limit: pageSize },
+      ],
+      totalCount: [
+        { $count: "count" },
+      ],
+    },
+  });
 
+  // Run aggregation
+  const aggResult = await Product.aggregate(pipeline).exec();
+
+  const products = aggResult[0]?.products ?? [];
+  const totalProducts = aggResult[0]?.totalCount?.[0]?.count ?? 0;
+  const totalPages = Math.ceil(totalProducts / pageSize) || 0;
 
   return {
     content: products,
     currentPage: pageNumber,
     totalPages,
     totalProducts,
-  }
-
+  };
 }
-
 
 async function createMultipleProduct(products) {
   for(let product of products) {
