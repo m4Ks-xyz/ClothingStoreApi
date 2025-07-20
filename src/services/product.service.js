@@ -276,11 +276,30 @@ async function getAllProducts(reqQuery) {
     totalProducts,
   };
 }
-async function createMultipleProduct(products) {
-  for(let product of products) {
-    await createProduct(product);
-  }
-}
+
+
+// async function createMultipleProduct(products) {
+//   for(let product of products) {
+//     await createProduct(product);
+//   }
+// }
+
+
+
+
+// async function createMultipleProduct() {
+//   const products = await Product.find();
+//   for (const product of products) {
+//     product.numRatings = {
+//       1: 0,
+//       2: 0,
+//       3: 0,
+//       4: 0,
+//       5: 0
+//     }
+//     await product.save()
+//   }
+// }
 
 
 
@@ -302,15 +321,15 @@ async function createMultipleProduct(products) {
 
 
 // clear products
-// async function createMultipleProduct() {
-//
-//   const products = await Product.find({});
-//   for (const product of products) {
-//     product.ratings = []
-//     product.reviews = []
-//     await product.save();
-//         }
-//       }
+async function createMultipleProduct() {
+
+  const products = await Product.find({});
+  for (const product of products) {
+    product.ratings = []
+    product.reviews = []
+    await product.save();
+        }
+      }
 
       // quantity sum
 // async function createMultipleProduct() {

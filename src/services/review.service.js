@@ -31,7 +31,6 @@ async function createReview(data, user) {
   const savedReview = await review.save();
 
   product.reviews.push(savedReview._id);
-  product.numRatings = product.reviews.length;
 
   foundUser.reviews.push(savedReview._id);
 

@@ -55,8 +55,26 @@ const ProductSchema = new mongoose.Schema({
     },
   ],
   numRatings: {
-    type: Number,
-    default: 0,
+    "1":{
+      type: Number,
+      default:0,
+      },
+    "2":{
+      type: Number,
+      default:0,
+      },
+    "3":{
+      type: Number,
+      default:0,
+      },
+    "4":{
+      type: Number,
+      default:0,
+      },
+    "5":{
+      type: Number,
+      default:0,
+      },
   },
   category: {
     type: mongoose.Schema.Types.ObjectId,

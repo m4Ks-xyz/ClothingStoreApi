@@ -38,6 +38,7 @@ async function createRating(req, user) {
   const savedRating = await rating.save();
 
   product.ratings.push(savedRating._id)
+  product.numRatings[req.rating.toString()] = (product.numRatings[req.rating.toString()] || 0) + 1
 
   foundUser.ratings.push(savedRating._id)
 
