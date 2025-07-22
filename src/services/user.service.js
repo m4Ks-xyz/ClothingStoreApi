@@ -1,4 +1,5 @@
 const User = require("../models/user.model.js");
+const Address = require("../models/address.model")
 const bcrypt = require("bcrypt");
 const jwtProvider = require("../config/jwtProvider");
 
@@ -86,7 +87,7 @@ const editUserByToken = async (token, payload) => {
     const user = await User.findById(userId).populate('address');
     if (!user) throw new Error("User not found");
 
-    const { email, newPassword, currentPassword, avatarImg } = payload;
+    const { email, newPassword, currentPassword, avatarImg, deleteAddressId } = payload;
 
     // Validate email
     if (email && !EMAIL_RE.test(email)) {
@@ -118,6 +119,17 @@ const editUserByToken = async (token, payload) => {
         throw new Error("Current password is incorrect");
       }
       user.password = await bcrypt.hash(newPassword, 8);
+    }
+
+
+    if (deleteAddressId) {
+      const addressIndex = user.address.findIndex(addr => addr._id.toString() === deleteAddressId);
+      if (addressIndex === -1) {
+        throw new Error("Address not found");
+      }
+      user.address.splice(addressIndex, 1);
+
+      await Address.findByIdAndDelete(deleteAddressId, {});
     }
 
     await user.save();

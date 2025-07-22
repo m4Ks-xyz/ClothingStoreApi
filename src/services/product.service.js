@@ -278,11 +278,49 @@ async function getAllProducts(reqQuery) {
 }
 
 
-// async function createMultipleProduct(products) {
-//   for(let product of products) {
-//     await createProduct(product);
-//   }
-// }
+const getHomePageFeaturedProducts = async () => {
+  // Categories you provided with IDs and names
+  const categories = [
+    { id: "685ad242889250097a0e9609", name: "Lengha Choli" },
+    { id: "685ad1a5889250097a0e9543", name: "Gouns" },
+    { id: "685adcc5889250097a0e9ba4", name: "Men Kurta" },
+    { id: "685adc72889250097a0e9ad9", name: "Men Jeans" },
+  ];
+
+  const results = [];
+
+  for (const category of categories) {
+    // Find first 6 products in this category
+    const items = await Product.find(
+        { category: category.id }, // Match category ObjectId
+        {
+          _id: 1,
+          imageUrl: 1,
+          title: 1,
+          price: 1,
+          discount: 1,
+          discountedPrice: 1,
+        }
+    )
+        .limit(6)
+        .lean()
+        .exec();
+
+    results.push({
+      id: category.id,
+      name: category.name,
+      items,
+    });
+  }
+
+  return { products: results};
+};
+
+async function createMultipleProduct(products) {
+  for(let product of products) {
+    await createProduct(product);
+  }
+}
 
 
 
@@ -321,15 +359,15 @@ async function getAllProducts(reqQuery) {
 
 
 // clear products
-async function createMultipleProduct() {
-
-  const products = await Product.find({});
-  for (const product of products) {
-    product.ratings = []
-    product.reviews = []
-    await product.save();
-        }
-      }
+// async function createMultipleProduct() {
+//
+//   const products = await Product.find({});
+//   for (const product of products) {
+//     product.ratings = []
+//     product.reviews = []
+//     await product.save();
+//         }
+//       }
 
       // quantity sum
 // async function createMultipleProduct() {
@@ -346,6 +384,7 @@ module.exports = {
   createProduct,
   deleteProduct,
   updateProduct,
+  getHomePageFeaturedProducts,
   getAllProducts,
   findProductById,
   createMultipleProduct

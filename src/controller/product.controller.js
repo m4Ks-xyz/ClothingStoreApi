@@ -48,6 +48,15 @@ const getAllProducts = async (req, res) => {
   }
 }
 
+const getHomePageProducts = async (req, res) => {
+  try {
+    const products = await productService.getHomePageFeaturedProducts(req.query);
+    return res.status(200).send(products);
+  } catch (error) {
+    return res.status(500).send({error: error.message});
+  }
+}
+
 const createMultipleProduct = async (req, res) => {
   try {
     await productService.createMultipleProduct(req.body);
@@ -63,5 +72,6 @@ module.exports={
   updateProduct,
   getAllProducts,
   createMultipleProduct,
+  getHomePageProducts,
   findProductById
 }

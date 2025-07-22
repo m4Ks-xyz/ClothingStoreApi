@@ -5,6 +5,6 @@ const reviewController = require("../controller/review.controller.js");
 const authenticate = require("../middle-ware/authenticate.js");
 
 router.post("/create", authenticate, reviewController.createReview);
-router.get("/product/:productId", authenticate, reviewController.getAllReview);
+router.get("/product/:productId", reviewController.getAllReview);
 
 module.exports = router;

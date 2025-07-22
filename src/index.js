@@ -4,8 +4,13 @@ const cors = require("cors");
 
 const app = express();
 
+const corsOptions = {
+  origin: '*',
+  optionsSuccessStatus: 200
+}
+
 app.use(express.json());
-app.use(cors());
+app.use(cors(corsOptions));
 
 app.get("/", (req, res) => {
   return res.status(200).send({ message: "Welcome to ClothStore API" });
@@ -38,8 +43,7 @@ app.use("/api/admin/orders", adminOrderRouter);
 const reviewRouter = require("./routes/review.routes.js");
 app.use("/api/reviews", reviewRouter);
 
-const ratingRouter = require("./routes/rating.routes.js");
-app.use("/api/ratings", ratingRouter);
+
 
 
 module.exports = app;

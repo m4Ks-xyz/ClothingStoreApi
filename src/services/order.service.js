@@ -3,26 +3,26 @@ const Address = require("../models/address.model");
 const Order = require("../models/order.model");
 const OrderItems = require("../models/order-items.model");
 
-async function createOrder(user, {shippingAddress}){
+async function createOrder(user, { shippingAddress }) {
   let address;
 
   if (shippingAddress._id) {
-    let existAddress = await Address.findById(shippingAddress._id);
-    address = existAddress
-  }
-  else{
-    address = new Address(shippingAddress);
-    address.user = user;
+    address = await Address.findById(shippingAddress._id);
+  } else {
+    address = new Address({
+      ...shippingAddress,
+      user: user._id,
+    });
     await address.save();
 
-    user.address.push(address);
+    user.address.push(address._id);
     await user.save();
   }
 
-  const cart = await cartService.findUserCart(user._id)
-  const orderItems = []
+  const cart = await cartService.findUserCart(user._id);
+  const orderItems = [];
 
-  for(const item of cart.cartItems) {
+  for (const item of cart.cartItems) {
     const orderItem = new OrderItems({
       price: item.price,
       product: item.product,
@@ -37,61 +37,42 @@ async function createOrder(user, {shippingAddress}){
   }
 
   const createdOrder = new Order({
-    user,
+    user: user._id,
     orderItems,
     totalPrice: cart.totalPrice,
     totalDiscountedPrice: cart.totalDiscountedPrice,
     discount: cart.discount,
     totalItems: cart.totalItem,
     shippingAddress: address,
-  })
+  });
 
   const savedOrder = await createdOrder.save();
+
+  cart.cartItems = [];
+  cart.discount = 0;
+  cart.totalDiscountedPrice = 0;
+  cart.totalItem = 0;
+  cart.totalPrice = 0;
+  await cart.save();
 
   return savedOrder;
 }
 
-async function placeOrder(orderId){
+async function payOrder(orderId){
   const order = await findOrderById(orderId);
 
-  order.orderStatus = 'placed';
-  order.paymentDetails = 'completed';
+  order.paymentDetails = {paymentStatus: 'completed' , paymentMethod: 'paypal'};
+
+  order.populate()
 
   await order.save();
+  return order
 }
 
-async function confirmOrder(orderId){
+async function changeOrderStatus(orderId, status){
   const order = await findOrderById(orderId);
 
-  order.orderStatus = 'confirmed';
-
-  await order.save();
-}
-async function prepareOrder(orderId){
-  const order = await findOrderById(orderId);
-
-  order.orderStatus = 'preparing';
-
-  await order.save();
-}
-async function sendOrder(orderId){
-  const order = await findOrderById(orderId);
-
-  order.orderStatus = 'send';
-
-  await order.save();
-}
-async function deliverOrder(orderId){
-  const order = await findOrderById(orderId);
-
-  order.orderStatus = 'delivered';
-
-  await order.save();
-}
-async function cancelOrder(orderId){
-  const order = await findOrderById(orderId);
-
-  order.orderStatus = 'canceled';
+  order.orderStatus = status;
 
   await order.save();
 }
@@ -103,7 +84,6 @@ async function findOrderById(orderId){
     throw new Error('Nieprawidłowy identyfikator zamówienia');
   }
   const order = await Order.findById(orderId)
-      .populate('user')
       .populate({path: "orderItems", populate:{path:'product'}})
       .populate('shippingAddress');
 
@@ -140,14 +120,10 @@ async function deleteOrder(orderId){
 
 module.exports = {
   createOrder,
-  placeOrder,
-  deliverOrder,
   userOrderHistory,
   getAllOrders,
   deleteOrder,
-  confirmOrder,
-  prepareOrder,
-  sendOrder,
-  cancelOrder,
   findOrderById,
+  changeOrderStatus,
+  payOrder
 }
