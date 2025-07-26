@@ -61,7 +61,12 @@ async function createOrder(user, { shippingAddress }) {
 async function payOrder(orderId){
   const order = await findOrderById(orderId);
 
+  const deliveryDate = new Date();
+  deliveryDate.setDate(deliveryDate.getDate() + 5);
+
   order.paymentDetails = {paymentStatus: 'completed' , paymentMethod: 'paypal'};
+  order.orderStatus = 'confirmed'
+  order.deliveryDate = deliveryDate
 
   order.populate()
 

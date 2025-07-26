@@ -325,22 +325,6 @@ async function createMultipleProduct(products) {
 
 
 
-// async function createMultipleProduct() {
-//   const products = await Product.find();
-//   for (const product of products) {
-//     product.numRatings = {
-//       1: 0,
-//       2: 0,
-//       3: 0,
-//       4: 0,
-//       5: 0
-//     }
-//     await product.save()
-//   }
-// }
-
-
-
 // separetly
 // async function createMultipleProduct() {
 //   function getRandomQuantity() {
@@ -365,6 +349,13 @@ async function createMultipleProduct(products) {
 //   for (const product of products) {
 //     product.ratings = []
 //     product.reviews = []
+//     product.numRatings = {
+//       1: 0,
+//       2: 0,
+//       3: 0,
+//       4: 0,
+//       5: 0
+//     }
 //     await product.save();
 //         }
 //       }

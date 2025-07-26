@@ -1,17 +1,13 @@
-// const app = require(".");
-// const connectDb = require("./config/db.js");
-//
-// const PORT = 5454;
-// app.listen(PORT, async () => {
-//   await connectDb;
-//
-//   console.log("API listening to port :", PORT);
-// });
+require('dotenv').config()
 
 const app = require("./index.js");
 const mongoose = require("mongoose");
 
-const mongoDbUrl = "mongodb+srv://maksymilian907:9VRqdrG48JDtYEeC@cluster0.91gkazc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+
+const mongoDbUrl = process.env.MONGO_URI_DEV
+
+// const mongoDbUrl = `mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}/${process.env.MONGO_DATABASE}?authSource=${process.env.MONGO_DATABASE}`;
+
 
 mongoose.connect(mongoDbUrl, {
   useNewUrlParser: true,
@@ -21,12 +17,13 @@ mongoose.connect(mongoDbUrl, {
   family: 4
 })
     .then(() => {
-      console.log("Połączono z bazą MongoDB");
-      app.listen(5454, () => {
-        console.log("Serwer nasłuchuje na porcie 5454");
+      console.log("Polaczono z baza MongoDB");
+      app.listen(process.env.MONGO_PORT, () => {
+        console.log(`Serwer nasluchuje na porcie ${process.env.MONGO_PORT}}`);
+        console.log(`Polaczono z baza "mongodb://${process.env.MONGO_USER}:password@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}/${process.env.MONGO_DATABASE}?authSource=${process.env.MONGO_DATABASE}"`)
       });
     })
     .catch((err) => {
-      console.error("Błąd połączenia z MongoDB:", err);
+      console.error("Blad polaczenia z MongoDB:", err);
       process.exit(1);
     });

@@ -33,7 +33,6 @@ const orderHistory = async(req, res) => {
 
 const payOrder = async (req, res) => {
   const { orderId } = req.params
-  console.log(orderId);
   try {
    let payedOrder = await orderService.payOrder(orderId);
     return res.status(201).send(payedOrder);
