@@ -45,43 +45,66 @@ async function addCartItem(userId, req) {
     const isPresent = await CartItem.findOne({
       cart: cart._id,
       product: product._id,
-      size: product.size,
+      size: req.size,
       userId
     });
 
     if (!isPresent) {
-      const cartItem = new CartItem({
-        product: product._id,
+      // Convert the product to a plain object
+      const productData = product.toObject();
+
+      // Calculate prices
+      const basePrice = productData.price;
+      const discountPrice = productData.discountedPrice ?? productData.price;
+      const totalPrice = basePrice * req.quantity;
+      const totalDiscounted = discountPrice * req.quantity;
+      const discountAmount = totalPrice - totalDiscounted;
+
+      // Create cart item with full product snapshot
+      const  cartItem = new CartItem({
+        product: {
+          _id: productData._id,
+          title: productData.title,
+          description: productData.description,
+          price: productData.price,
+          discountedPrice: productData.discountedPrice,
+          discount: productData.discount,
+          brand: productData.brand,
+          color: productData.color,
+          imageUrl: productData.imageUrl,
+          size: productData.sizes, // picked by user from product.sizes
+          category: productData.category,
+          topLevelCategory: productData.topLevelCategory,
+          secondLevelCategory: productData.secondLevelCategory,
+          thirdLevelCategory: productData.thirdLevelCategory,
+        },
         cart: cart._id,
         quantity: req.quantity,
         userId,
-        price: product.price,
+        price: productData.price * req.quantity,
+        discountedPrice: (productData.discountedPrice ?? productData.price) * req.quantity,
         size: req.size,
-        discountedPrice: product.discountedPrice,
-
       });
 
       const createdCartItem = await cartItem.save();
 
+      // Update the cart totals
       cart = await Cart.findOneAndUpdate(
           { _id: cart._id },
           {
             $push: { cartItems: createdCartItem._id },
             $inc: {
-              totalPrice: product.price  * req.quantity,
+              totalPrice: totalPrice,
               totalItem: 1,
-              totalDiscountedPrice: product.discountedPrice === 0 ? product.price * req.quantity :  product.discountedPrice * req.quantity,
-              discount: product.discountedPrice === 0 ? 0 : product.price - product.discountedPrice
+              totalDiscountedPrice: totalDiscounted,
+              discount: discountAmount
             }
           },
           { new: true }
-      )
-          .populate({
-            path: 'cartItems',
-            populate: {
-              path: 'product'
-            }
-          });
+      ).populate({
+        path: 'cartItems',
+        populate: { path: 'product' }
+      });
 
       return cart;
     }

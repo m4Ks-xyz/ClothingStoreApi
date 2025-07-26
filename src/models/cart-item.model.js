@@ -7,9 +7,25 @@ const CartItemSchema = new mongoose.Schema({
     required: true,
   },
   product: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "product",
-    required: true,
+    _id: { type: mongoose.Schema.Types.ObjectId, required: true },
+    title: { type: String, required: true },
+    description: { type: String },
+    price: { type: Number, required: true },
+    discountedPrice: { type: Number },
+    discount: { type: Number },
+    brand: { type: String },
+    color: { type: String },
+    imageUrl: { type: String },
+    sizes: [
+      {
+        name: { type: String },
+        quantity: { type: Number }
+      }
+    ],
+    category: { type: mongoose.Schema.Types.ObjectId, ref: "categories" },
+    topLevelCategory: { type: String },
+    secondLevelCategory: { type: String },
+    thirdLevelCategory: { type: String },
   },
   size: {
     type: String,
