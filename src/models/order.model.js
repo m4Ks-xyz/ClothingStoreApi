@@ -18,8 +18,13 @@ const OrderSchema = new mongoose.Schema({
     type: Date,
   },
   shippingAddress: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "addresses",
+    city: String,
+    firstName: String,
+    lastName: String,
+    number: String,
+    phoneNumber: String,
+    street: String,
+    zipCode: String,
   },
   paymentDetails: {
     paymentMethod: {

@@ -2,6 +2,7 @@ const cartService = require('../services/cart.service.js');
 const Address = require("../models/address.model");
 const Order = require("../models/order.model");
 const OrderItems = require("../models/order-items.model");
+const CartItem = require("../models/cart-item.model"); // Adjust the path if needed
 
 async function createOrder(user, { shippingAddress }) {
   let address;
@@ -22,7 +23,11 @@ async function createOrder(user, { shippingAddress }) {
   const cart = await cartService.findUserCart(user._id);
   const orderItems = [];
 
-  for (const item of cart.cartItems) {
+  for (const cartItemId of cart.cartItems) {
+    const item = await CartItem.findById(cartItemId);
+
+    if (!item) continue;
+
     const orderItem = new OrderItems({
       price: item.price,
       product: item.product,
@@ -34,6 +39,8 @@ async function createOrder(user, { shippingAddress }) {
 
     const createdOrderItem = await orderItem.save();
     orderItems.push(createdOrderItem);
+
+    await CartItem.findByIdAndDelete(cartItemId);
   }
 
   const createdOrder = new Order({
@@ -43,7 +50,15 @@ async function createOrder(user, { shippingAddress }) {
     totalDiscountedPrice: cart.totalDiscountedPrice,
     discount: cart.discount,
     totalItems: cart.totalItem,
-    shippingAddress: address,
+    shippingAddress: {
+      city: address.city,
+      firstName: address.firstName,
+      lastName: address.lastName,
+      number: address.number,
+      phoneNumber: address.phoneNumber,
+      street: address.street,
+      zipCode: address.zipCode,
+    },
   });
 
   const savedOrder = await createdOrder.save();
