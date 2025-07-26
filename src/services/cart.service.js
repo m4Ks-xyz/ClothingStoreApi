@@ -44,7 +44,7 @@ async function addCartItem(userId, req) {
 
     const isPresent = await CartItem.findOne({
       cart: cart._id,
-      product: product._id,
+      'product._id': product._id,
       size: req.size,
       userId
     });
