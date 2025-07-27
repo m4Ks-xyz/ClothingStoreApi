@@ -6,7 +6,7 @@ This is the backend RESTful API built for the [**Clothing Store - Hindu Clothes*
 
 ## Developed On 🌍
 
-👉 Hosted and developed on: [https://mikr.us/](https://mikr.us/) (with MongoDB)
+👉 Hosted and developed on: [mikr.us](https://mikr.us/) (with MongoDB)
 
 ## Technologies Used 🛠️
 
