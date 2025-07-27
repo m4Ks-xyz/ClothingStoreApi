@@ -4,9 +4,7 @@ const app = require("./index.js");
 const mongoose = require("mongoose");
 
 
-const mongoDbUrl = process.env.MONGO_URI_DEV
-
-// const mongoDbUrl = `mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}/${process.env.MONGO_DATABASE}?authSource=${process.env.MONGO_DATABASE}`;
+const mongoDbUrl = `mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}/${process.env.MONGO_DATABASE}?authSource=${process.env.MONGO_DATABASE}`;
 
 
 mongoose.connect(mongoDbUrl, {
